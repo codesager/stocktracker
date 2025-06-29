@@ -232,36 +232,36 @@ const StockTracker = () => {
 
     return (
       <tr className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-        <td className="px-4 py-2 font-medium text-gray-900 dark:text-gray-100 flex items-center text-sm">
+        <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 flex items-center text-xs">
           {stock}
           <button
             onClick={() => removeStockFromWatchlist(watchlistId, stock)}
-            className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="ml-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <X size={12} />
+            <X size={10} />
           </button>
         </td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.open.toFixed(2)}</td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.high.toFixed(2)}</td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.low.toFixed(2)}</td>
-        <td className="px-4 py-2 font-medium text-gray-900 dark:text-gray-100 text-sm">${data.close.toFixed(2)}</td>
-        <td className={`px-4 py-2 flex items-center ${isPositive ? 'text-green-600' : 'text-red-600'} text-sm`}>
-          {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.open.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.high.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.low.toFixed(2)}</td>
+        <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 text-xs">${data.close.toFixed(2)}</td>
+        <td className={`px-2 py-1 flex items-center ${isPositive ? 'text-green-600' : 'text-red-600'} text-xs`}>
+          {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           <span className="ml-1">
             {isPositive ? '+' : ''}{data.change.toFixed(2)} ({data.changePercent.toFixed(2)}%)
           </span>
         </td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.sma8.toFixed(2)}</td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.sma20.toFixed(2)}</td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.sma50.toFixed(2)}</td>
-        <td className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">${data.sma200.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma8.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma20.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma50.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma200.toFixed(2)}</td>
       </tr>
     );
   };
 
   const WatchlistCard = ({ watchlist }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 mb-4 group">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 mb-4 group">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
           {editingWatchlist === watchlist.id ? (
             <input
@@ -319,16 +319,16 @@ const StockTracker = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700">
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Symbol</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Open</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">High</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Low</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Close</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Change</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 8</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 20</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 50</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 200</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Symbol</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Open</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">High</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Low</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Close</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Change</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 8</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 20</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 50</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 200</th>
               </tr>
             </thead>
             <tbody>
@@ -457,7 +457,7 @@ const StockTracker = () => {
       </header>
 
       {/* Main Content */}
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid ${tierConfigs[userTier].layout} gap-4`}>
+      <main className={`w-full px-2 sm:px-4 lg:px-6 py-6 grid ${tierConfigs[userTier].layout} gap-4`}>
         {watchlists.filter(wl => wl.visible).length === 0 ? (
           <div className="text-center py-12 col-span-full">
             <BarChart3 size={56} className="mx-auto mb-3 text-gray-400 dark:text-gray-600" />
