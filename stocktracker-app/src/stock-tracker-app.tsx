@@ -14,8 +14,28 @@ import {
   X,
   Check,
   Download,
-  Upload
+  Upload,
+  GripVertical
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Watchlist {
   id: number;
@@ -43,6 +63,7 @@ interface StockData {
 interface TierConfig {
   maxWatchlists: number;
   layout: string;
+  layoutOptions?: string[];
 }
 
 interface TierConfigs {
@@ -75,12 +96,26 @@ const StockTracker = () => {
   const [newStockSymbol, setNewStockSymbol] = useState('');
   const [editingWatchlist, setEditingWatchlist] = useState<number | null>(null);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
+  const [selectedLayout, setSelectedLayout] = useState('grid-cols-1 md:grid-cols-2');
   const [apiKey, setApiKey] = useState(localStorage.getItem('fmpApiKey') || '');
   const [showApiKeyModal, setShowApiKeyModal] = useState(!localStorage.getItem('fmpApiKey'));
 
   const tierConfigs: TierConfigs = {
-    free: { maxWatchlists: 2, layout: 'grid-cols-1 md:grid-cols-2' },
-    premium: { maxWatchlists: 9, layout: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' }
+    free: { 
+      maxWatchlists: 2, 
+      layout: 'grid-cols-1 md:grid-cols-2',
+      layoutOptions: ['grid-cols-1 md:grid-cols-2']
+    },
+    premium: { 
+      maxWatchlists: 9, 
+      layout: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+      layoutOptions: [
+        'grid-cols-1 md:grid-cols-2',
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+        'grid-cols-1 md:grid-cols-3 lg:grid-cols-4',
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+      ]
+    }
   };
 
   // Save theme preference
@@ -88,6 +123,38 @@ const StockTracker = () => {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
+
+  // Update layout when tier changes
+  useEffect(() => {
+    setSelectedLayout(tierConfigs[userTier].layout);
+  }, [userTier]);
+
+  // Debug watchlists changes
+  useEffect(() => {
+    console.log('Watchlists updated:', watchlists);
+  }, [watchlists]);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setWatchlists((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over?.id);
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   // Handle API key submission
   const handleApiKeySubmit = () => {
@@ -99,19 +166,28 @@ const StockTracker = () => {
 
   // Export watchlists to CSV
   const exportWatchlists = () => {
-    const csvContent = [
-      'Watchlist Name,Stocks,Visible',
-      ...watchlists.map(wl => 
-        `"${wl.name.replace(/"/g, '""')}","${wl.stocks.join(';')}","${wl.visible}"`
-      )
-    ].join('\n');
+    try {
+      const csvContent = [
+        'Watchlist Name,Stocks,Visible',
+        ...watchlists.map(wl => {
+          const escapedName = wl.name.replace(/"/g, '""');
+          const stocksString = wl.stocks.join(';');
+          return `"${escapedName}","${stocksString}","${wl.visible}"`;
+        })
+      ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'watchlists.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `watchlists_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      
+      console.log('Exported watchlists:', watchlists);
+    } catch (error) {
+      console.error('Error exporting watchlists:', error);
+      alert('Error exporting watchlists');
+    }
   };
 
   // Import watchlists from CSV
@@ -121,32 +197,99 @@ const StockTracker = () => {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result;
-      if (typeof text !== 'string') return;
-      
-      const lines = text.split('\n').map((line: string) => line.trim()).filter((line: string) => line);
-      if (lines[0] !== 'Watchlist Name,Stocks,Visible') {
-        alert('Invalid CSV format. Expected header: Watchlist Name,Stocks,Visible');
-        return;
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          alert('Failed to read file content');
+          return;
+        }
+        
+        const lines = text.split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => line && line.length > 0);
+        
+        if (lines.length < 2) {
+          alert('CSV file is empty or has no data rows');
+          return;
+        }
+
+        if (lines[0] !== 'Watchlist Name,Stocks,Visible') {
+          alert('Invalid CSV format. Expected header: Watchlist Name,Stocks,Visible');
+          return;
+        }
+
+        const newWatchlists: Watchlist[] = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          try {
+            // More robust CSV parsing
+            const parts = line.split(',');
+            if (parts.length < 3) {
+              console.warn(`Skipping invalid line ${i + 1}: ${line}`);
+              continue;
+            }
+            
+            const name = parts[0].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+            const stocksStr = parts[1].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+            const visibleStr = parts[2].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+            
+            if (!name) {
+              console.warn(`Skipping line ${i + 1}: missing watchlist name`);
+              continue;
+            }
+            
+            const stocks = stocksStr ? stocksStr.split(';').filter((s: string) => s.trim()) : [];
+            const visible = visibleStr.toLowerCase() === 'true';
+            
+            newWatchlists.push({
+              id: Date.now() + i + Math.floor(Math.random() * 1000),
+              name,
+              stocks,
+              visible
+            });
+          } catch (parseError) {
+            console.error(`Error parsing line ${i + 1}:`, parseError);
+            continue;
+          }
+        }
+
+        if (newWatchlists.length === 0) {
+          alert('No valid watchlists found in the CSV file');
+          return;
+        }
+
+        if (newWatchlists.length > tierConfigs[userTier].maxWatchlists) {
+          alert(`Cannot import ${newWatchlists.length} watchlists. ${userTier.charAt(0).toUpperCase() + userTier.slice(1)} tier allows up to ${tierConfigs[userTier].maxWatchlists} watchlists.`);
+          return;
+        }
+
+        console.log('Importing watchlists:', newWatchlists);
+        setWatchlists(newWatchlists);
+        
+        // Immediately fetch data for new stocks
+        setTimeout(() => {
+          fetchStockData();
+        }, 0);
+
+        // Reset file input
+        event.target.value = '';
+        
+        // Show success message after a small delay to ensure state update
+        setTimeout(() => {
+          alert(`Successfully imported ${newWatchlists.length} watchlist(s)`);
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error importing watchlists:', error);
+        alert('Error importing watchlists. Please check the file format.');
       }
-
-      const newWatchlists = lines.slice(1).map((line: string, index: number) => {
-        const [name, stocks, visible] = line.split(',').map((item: string) => item.replace(/^"|"$/g, '').replace(/""/g, '"'));
-        return {
-          id: Date.now() + index,
-          name,
-          stocks: stocks ? stocks.split(';').filter((s: string) => s) : [],
-          visible: visible.toLowerCase() === 'true'
-        };
-      });
-
-      if (newWatchlists.length > tierConfigs[userTier].maxWatchlists) {
-        alert(`Cannot import ${newWatchlists.length} watchlists. ${userTier.charAt(0).toUpperCase() + userTier.slice(1)} tier allows up to ${tierConfigs[userTier].maxWatchlists} watchlists.`);
-        return;
-      }
-
-      setWatchlists(newWatchlists);
     };
+    
+    reader.onerror = () => {
+      alert('Error reading file');
+    };
+    
     reader.readAsText(file);
   };
 
@@ -164,7 +307,7 @@ const StockTracker = () => {
       console.log('quoteData', quoteData);
       // Fetch historical data for EMA calculation (60 days to ensure we have enough data)
       const historyResponse = await fetch(
-        `https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?timeseries=60&apikey=${apiKey}`
+        `https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?timeseries=300&apikey=${apiKey}`
       );
       const historyData = await historyResponse.json();
       console.log('historyData', historyData);
@@ -197,15 +340,25 @@ const StockTracker = () => {
 
   
   // Calculate EMA
-  const calculateEMA = (prices: any[], period: number) => {
-    if (prices.length < period) return null;
-    const multiplier = 2 / (period + 1);
-    let ema = prices.slice(0, period).reduce((sum: any, price: any) => sum + price, 0) / period;
-    
-    for (let i = period; i < prices.length; i++) {
-      ema = (prices[i] * multiplier) + (ema * (1 - multiplier));
+  const calculateEMA = (prices: number[], period: number): number | null => {
+    // Input validation
+    if (!Number.isInteger(period) || period <= 0) {
+      throw new Error("Period must be a positive integer");
     }
-    return ema;
+    if (prices.length < period || prices.some(isNaN)) {
+      return null;
+    }
+  
+    const multiplier = 2 / (period + 1);
+    // Calculate initial SMA
+    let ema = prices.slice(0, period).reduce((sum, price) => sum + price, 0) / period;
+  
+    // Calculate EMA for subsequent prices
+    for (let i = period; i < prices.length; i++) {
+      ema = prices[i] * multiplier + ema * (1 - multiplier);
+    }
+  
+    return Number(ema.toFixed(4)); // Round to 4 decimal places for precision
   };
   /*
   // Mock stock data generator (replace with real FMP API calls)
@@ -262,7 +415,7 @@ const StockTracker = () => {
   // Auto-refresh every 30 seconds
   useEffect(() => {
     fetchStockData();
-    const interval = setInterval(fetchStockData, 30000);
+    const interval = setInterval(fetchStockData, 1200000);
     return () => clearInterval(interval);
   }, [fetchStockData]);
 
@@ -355,30 +508,58 @@ const StockTracker = () => {
     );
   };
 
-  const WatchlistCard = ({ watchlist }: { watchlist: Watchlist }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 mb-4 group">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center">
-          {editingWatchlist === watchlist.id ? (
-            <input
-              type="text"
-              defaultValue={watchlist.name}
-              className="text-lg font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none text-gray-900 dark:text-gray-100"
-              onBlur={(e) => updateWatchlistName(watchlist.id, e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  updateWatchlistName(watchlist.id, (e.target as HTMLInputElement).value);
-                }
-              }}
-              autoFocus
-            />
-          ) : (
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center">
-              <BarChart3 className="mr-2" size={18} />
-              {watchlist.name}
-            </h2>
-          )}
-        </div>
+  // Sortable Watchlist Card Component
+  const SortableWatchlistCard = ({ watchlist }: { watchlist: Watchlist }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: watchlist.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div 
+        ref={setNodeRef} 
+        style={style}
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 mb-4 group"
+      >
+              <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center">
+            <div 
+              className="mr-2 cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical size={16} />
+            </div>
+            {editingWatchlist === watchlist.id ? (
+              <input
+                type="text"
+                defaultValue={watchlist.name}
+                className="text-lg font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none text-gray-900 dark:text-gray-100"
+                onBlur={(e) => updateWatchlistName(watchlist.id, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    updateWatchlistName(watchlist.id, (e.target as HTMLInputElement).value);
+                  }
+                }}
+                autoFocus
+              />
+            ) : (
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                <BarChart3 className="mr-2" size={18} />
+                {watchlist.name}
+              </h2>
+            )}
+          </div>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setEditingWatchlist(watchlist.id)}
@@ -451,6 +632,7 @@ const StockTracker = () => {
       )}
     </div>
   );
+  };
 
   return (
     <div className={`min-h-screen transition-colors duration-300 font-sans text-sm ${isDark ? 'dark bg-gray-900' : 'bg-gray-100'}`}>
@@ -501,14 +683,28 @@ const StockTracker = () => {
                 )}
                 Last updated: {Object.values(stockData)[0]?.lastUpdate || 'Never'}
               </div>
-              <select
-                value={userTier}
-                onChange={(e) => setUserTier(e.target.value as 'free' | 'premium')}
-                className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-lg text-sm"
-              >
-                <option value="free">Free Tier</option>
-                <option value="premium">Premium Tier</option>
-              </select>
+              <div className="flex items-center space-x-2">
+                <select
+                  value={userTier}
+                  onChange={(e) => setUserTier(e.target.value as 'free' | 'premium')}
+                  className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-lg text-sm"
+                >
+                  <option value="free">Free Tier</option>
+                  <option value="premium">Premium Tier</option>
+                </select>
+                {userTier === 'premium' && (
+                  <select
+                    value={selectedLayout}
+                    onChange={(e) => setSelectedLayout(e.target.value)}
+                    className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-lg text-sm"
+                  >
+                    <option value="grid-cols-1 md:grid-cols-2">2 Columns</option>
+                    <option value="grid-cols-1 md:grid-cols-2 lg:grid-cols-3">3 Columns</option>
+                    <option value="grid-cols-1 md:grid-cols-3 lg:grid-cols-4">4 Columns</option>
+                    <option value="grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">4 Columns XL</option>
+                  </select>
+                )}
+              </div>
               <button
                 onClick={exportWatchlists}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg flex items-center transition-colors text-sm"
@@ -553,7 +749,7 @@ const StockTracker = () => {
       </header>
 
       {/* Main Content */}
-      <main className={`w-full px-2 sm:px-4 lg:px-6 py-6 grid ${tierConfigs[userTier].layout} gap-4`}>
+      <main className={`w-full px-2 sm:px-4 lg:px-6 py-6 grid ${selectedLayout} gap-4`}>
         {watchlists.filter(wl => wl.visible).length === 0 ? (
           <div className="text-center py-12 col-span-full">
             <BarChart3 size={56} className="mx-auto mb-3 text-gray-400 dark:text-gray-600" />
@@ -572,11 +768,22 @@ const StockTracker = () => {
             </button>
           </div>
         ) : (
-          watchlists
-            .filter(wl => wl.visible)
-            .map(watchlist => (
-              <WatchlistCard key={watchlist.id} watchlist={watchlist} />
-            ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={watchlists.filter(wl => wl.visible).map(wl => wl.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {watchlists
+                .filter(wl => wl.visible)
+                .map(watchlist => (
+                  <SortableWatchlistCard key={watchlist.id} watchlist={watchlist} />
+                ))}
+            </SortableContext>
+          </DndContext>
         )}
       </main>
 
