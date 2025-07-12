@@ -16,11 +16,43 @@ import {
   Download,
   Upload
 } from 'lucide-react';
-import { SHA256 } from 'crypto-js';
+
+interface Watchlist {
+  id: number;
+  name: string;
+  stocks: string[];
+  visible: boolean;
+}
+
+interface StockData {
+  ticker: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  ema8: number | null;
+  ema20: number | null;
+  ema50: number | null;
+  ema200: number | null;
+  lastUpdate: string;
+}
+
+interface TierConfig {
+  maxWatchlists: number;
+  layout: string;
+}
+
+interface TierConfigs {
+  free: TierConfig;
+  premium: TierConfig;
+}
 
 const StockTracker = () => {
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const [watchlists, setWatchlists] = useState([
+  const [watchlists, setWatchlists] = useState<Watchlist[]>([
     {
       id: 1,
       name: 'Growth Stocks',
@@ -34,19 +66,19 @@ const StockTracker = () => {
       visible: true
     }
   ]);
-  const [stockData, setStockData] = useState({});
+  const [stockData, setStockData] = useState<Record<string, StockData>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAddWatchlist, setShowAddWatchlist] = useState(false);
   const [showAddStock, setShowAddStock] = useState(false);
-  const [selectedWatchlistId, setSelectedWatchlistId] = useState(null);
+  const [selectedWatchlistId, setSelectedWatchlistId] = useState<number | null>(null);
   const [newWatchlistName, setNewWatchlistName] = useState('');
   const [newStockSymbol, setNewStockSymbol] = useState('');
-  const [editingWatchlist, setEditingWatchlist] = useState(null);
-  const [userTier, setUserTier] = useState('free');
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKeyModal, setShowApiKeyModal] = useState(!localStorage.getItem('fmpApiKeyHash'));
+  const [editingWatchlist, setEditingWatchlist] = useState<number | null>(null);
+  const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('fmpApiKey') || '');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(!localStorage.getItem('fmpApiKey'));
 
-  const tierConfigs = {
+  const tierConfigs: TierConfigs = {
     free: { maxWatchlists: 2, layout: 'grid-cols-1 md:grid-cols-2' },
     premium: { maxWatchlists: 9, layout: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' }
   };
@@ -60,7 +92,7 @@ const StockTracker = () => {
   // Handle API key submission
   const handleApiKeySubmit = () => {
     if (apiKey.trim()) {
-      localStorage.setItem('fmpApiKeyHash', SHA256(apiKey).toString());
+      localStorage.setItem('fmpApiKey', apiKey);
       setShowApiKeyModal(false);
     }
   };
@@ -83,25 +115,27 @@ const StockTracker = () => {
   };
 
   // Import watchlists from CSV
-  const importWatchlists = (event) => {
-    const file = event.target.files[0];
+  const importWatchlists = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target.result;
-      const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+      const text = e.target?.result;
+      if (typeof text !== 'string') return;
+      
+      const lines = text.split('\n').map((line: string) => line.trim()).filter((line: string) => line);
       if (lines[0] !== 'Watchlist Name,Stocks,Visible') {
         alert('Invalid CSV format. Expected header: Watchlist Name,Stocks,Visible');
         return;
       }
 
-      const newWatchlists = lines.slice(1).map((line, index) => {
-        const [name, stocks, visible] = line.split(',').map(item => item.replace(/^"|"$/g, '').replace(/""/g, '"'));
+      const newWatchlists = lines.slice(1).map((line: string, index: number) => {
+        const [name, stocks, visible] = line.split(',').map((item: string) => item.replace(/^"|"$/g, '').replace(/""/g, '"'));
         return {
           id: Date.now() + index,
           name,
-          stocks: stocks ? stocks.split(';').filter(s => s) : [],
+          stocks: stocks ? stocks.split(';').filter((s: string) => s) : [],
           visible: visible.toLowerCase() === 'true'
         };
       });
@@ -116,6 +150,64 @@ const StockTracker = () => {
     reader.readAsText(file);
   };
 
+  
+  // Fetch stock quote and historical data
+  const generateStockData = useCallback(async (ticker: string) => {
+    if (!apiKey) return;
+    
+    try {
+      // Fetch current quote
+      const quoteResponse = await fetch(
+        `https://financialmodelingprep.com/api/v3/quote/${ticker}?apikey=${apiKey}`
+      );
+      const quoteData = await quoteResponse.json();
+      console.log('quoteData', quoteData);
+      // Fetch historical data for EMA calculation (60 days to ensure we have enough data)
+      const historyResponse = await fetch(
+        `https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}?timeseries=60&apikey=${apiKey}`
+      );
+      const historyData = await historyResponse.json();
+      console.log('historyData', historyData);
+      if (quoteData.length > 0 && historyData.historical) {
+        const quote = quoteData[0];
+        const prices = historyData.historical.reverse().map((day: { close: any; }) => day.close);
+        
+        return {
+          ticker: quote.symbol,
+          price: quote.price,
+          change: quote.change,
+          changePercent: quote.changesPercentage,
+          open: quote.open,
+          high: quote.dayHigh,
+          low: quote.dayLow,
+          close: quote.previousClose,
+          ema8: calculateEMA(prices, 8),
+          ema20: calculateEMA(prices, 20),
+          ema50: calculateEMA(prices, 50),
+          ema200: calculateEMA(prices, 200),
+          lastUpdate: new Date().toLocaleTimeString()
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error(`Error fetching data for ${ticker}:`, err);
+      return null;
+    }
+  }, [apiKey]);
+
+  
+  // Calculate EMA
+  const calculateEMA = (prices: any[], period: number) => {
+    if (prices.length < period) return null;
+    const multiplier = 2 / (period + 1);
+    let ema = prices.slice(0, period).reduce((sum: any, price: any) => sum + price, 0) / period;
+    
+    for (let i = period; i < prices.length; i++) {
+      ema = (prices[i] * multiplier) + (ema * (1 - multiplier));
+    }
+    return ema;
+  };
+  /*
   // Mock stock data generator (replace with real FMP API calls)
   const generateMockStockData = useCallback((symbol) => {
     const basePrice = 100 + Math.random() * 400;
@@ -137,10 +229,11 @@ const StockTracker = () => {
       lastUpdated: new Date().toLocaleTimeString()
     };
   }, []);
-
+*/
   // Simulate API data fetching
   const fetchStockData = useCallback(async () => {
-    if (!localStorage.getItem('fmpApiKeyHash')) {
+    console.log('fetchStockData', localStorage.getItem('fmpApiKey'));
+    if (!localStorage.getItem('fmpApiKey')) {
       setShowApiKeyModal(true);
       return;
     }
@@ -154,14 +247,17 @@ const StockTracker = () => {
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const newStockData = {};
-    allSymbols.forEach(symbol => {
-      newStockData[symbol] = generateMockStockData(symbol);
-    });
+    const newStockData: Record<string, StockData> = {};
+    for (const symbol of allSymbols) {
+      const data = await generateStockData(symbol);
+      if (data) {
+        newStockData[symbol] = data;
+      }
+    }
 
     setStockData(newStockData);
     setIsRefreshing(false);
-  }, [watchlists, generateMockStockData]);
+  }, [watchlists, generateStockData]);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -186,11 +282,11 @@ const StockTracker = () => {
     }
   };
 
-  const deleteWatchlist = (id) => {
+  const deleteWatchlist = (id: number) => {
     setWatchlists(watchlists.filter(wl => wl.id !== id));
   };
 
-  const toggleWatchlistVisibility = (id) => {
+  const toggleWatchlistVisibility = (id: number) => {
     setWatchlists(watchlists.map(wl => 
       wl.id === id ? { ...wl, visible: !wl.visible } : wl
     ));
@@ -209,7 +305,7 @@ const StockTracker = () => {
     }
   };
 
-  const removeStockFromWatchlist = (watchlistId, stockSymbol) => {
+  const removeStockFromWatchlist = (watchlistId: number, stockSymbol: string) => {
     setWatchlists(watchlists.map(wl => 
       wl.id === watchlistId 
         ? { ...wl, stocks: wl.stocks.filter(stock => stock !== stockSymbol) }
@@ -217,14 +313,14 @@ const StockTracker = () => {
     ));
   };
 
-  const updateWatchlistName = (id, newName) => {
+  const updateWatchlistName = (id: number, newName: string) => {
     setWatchlists(watchlists.map(wl => 
       wl.id === id ? { ...wl, name: newName } : wl
     ));
     setEditingWatchlist(null);
   };
 
-  const StockRow = ({ stock, watchlistId }) => {
+  const StockRow = ({ stock, watchlistId }: { stock: string; watchlistId: number }) => {
     const data = stockData[stock];
     if (!data) return null;
 
@@ -244,22 +340,22 @@ const StockTracker = () => {
         <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.open.toFixed(2)}</td>
         <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.high.toFixed(2)}</td>
         <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.low.toFixed(2)}</td>
-        <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 text-xs">${data.close.toFixed(2)}</td>
+        <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 text-xs">${data.price.toFixed(2)}</td>
         <td className={`px-2 py-1 flex items-center ${isPositive ? 'text-green-600' : 'text-red-600'} text-xs`}>
           {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           <span className="ml-1">
             {isPositive ? '+' : ''}{data.change.toFixed(2)} ({data.changePercent.toFixed(2)}%)
           </span>
         </td>
-        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma8.toFixed(2)}</td>
-        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma20.toFixed(2)}</td>
-        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma50.toFixed(2)}</td>
-        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.sma200.toFixed(2)}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.ema8?.toFixed(2) || 'N/A'}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.ema20?.toFixed(2) || 'N/A'}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.ema50?.toFixed(2) || 'N/A'}</td>
+        <td className="px-2 py-1 text-gray-600 dark:text-gray-400 text-xs">${data.ema200?.toFixed(2) || 'N/A'}</td>
       </tr>
     );
   };
 
-  const WatchlistCard = ({ watchlist }) => (
+  const WatchlistCard = ({ watchlist }: { watchlist: Watchlist }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 mb-4 group">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
@@ -271,7 +367,7 @@ const StockTracker = () => {
               onBlur={(e) => updateWatchlistName(watchlist.id, e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  updateWatchlistName(watchlist.id, e.target.value);
+                  updateWatchlistName(watchlist.id, (e.target as HTMLInputElement).value);
                 }
               }}
               autoFocus
@@ -323,12 +419,12 @@ const StockTracker = () => {
                 <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Open</th>
                 <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">High</th>
                 <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Low</th>
-                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Close</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
                 <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Change</th>
-                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 8</th>
-                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 20</th>
-                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 50</th>
-                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SMA 200</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">EMA 8</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">EMA 20</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">EMA 50</th>
+                <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">EMA 200</th>
               </tr>
             </thead>
             <tbody>
@@ -403,11 +499,11 @@ const StockTracker = () => {
                 ) : (
                   <RefreshCw className="mr-1" size={14} />
                 )}
-                Last updated: {Object.values(stockData)[0]?.lastUpdated || 'Never'}
+                Last updated: {Object.values(stockData)[0]?.lastUpdate || 'Never'}
               </div>
               <select
                 value={userTier}
-                onChange={(e) => setUserTier(e.target.value)}
+                onChange={(e) => setUserTier(e.target.value as 'free' | 'premium')}
                 className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-lg text-sm"
               >
                 <option value="free">Free Tier</option>
