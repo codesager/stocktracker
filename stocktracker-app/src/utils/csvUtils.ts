@@ -24,42 +24,65 @@ export const exportWatchlistsToCSV = (watchlists: Watchlist[]): string => {
  * @returns Array of parsed watchlists
  */
 export const parseCSVToWatchlists = (csvContent: string): Watchlist[] => {
-  const lines = csvContent.split('\n')
+  const lines = csvContent.split(/\r?\n/)
     .map((line: string) => line.trim())
     .filter((line: string) => line && line.length > 0);
-  
+
   if (lines.length < 2) {
     throw new Error('CSV file is empty or has no data rows');
   }
 
-  if (lines[0] !== 'Watchlist Name,Stocks,Visible') {
-    throw new Error('Invalid CSV format. Expected header: Watchlist Name,Stocks,Visible');
+  const header = lines[0].toLowerCase().replace(/\s/g, '');
+  if (!header.includes('watchlistname') || !header.includes('visible')) {
+    throw new Error('Invalid CSV format. Expected header containing Watchlist Name and Visible');
   }
 
   const newWatchlists: Watchlist[] = [];
-  
+
+  // Custom CSV line parser to handle quoted strings that might contain commas
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  };
+
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     try {
-      // More robust CSV parsing
-      const parts = line.split(',');
+      const parts = parseCSVLine(line);
       if (parts.length < 3) {
         console.warn(`Skipping invalid line ${i + 1}: ${line}`);
         continue;
       }
-      
-      const name = parts[0].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-      const stocksStr = parts[1].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-      const visibleStr = parts[2].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-      
+
+      const name = parts[0].trim().replace(/^"|"$/g, '').trim();
+      const stocksStr = parts[1].trim().replace(/^"|"$/g, '').trim();
+      const visibleStr = parts[2].trim().replace(/^"|"$/g, '').trim();
+
       if (!name) {
         console.warn(`Skipping line ${i + 1}: missing watchlist name`);
         continue;
       }
-      
-      const stocks = stocksStr ? stocksStr.split(';').filter((s: string) => s.trim()) : [];
+
+      const stocks = stocksStr ? stocksStr.split(';').map(s => s.trim().toUpperCase()).filter(Boolean) : [];
       const visible = visibleStr.toLowerCase() === 'true';
-      
+
       newWatchlists.push({
         id: Date.now() + i + Math.floor(Math.random() * 1000),
         name,

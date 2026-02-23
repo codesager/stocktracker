@@ -9,19 +9,35 @@ interface StockRowProps {
   onRemoveStock: (watchlistId: number, stockSymbol: string) => void;
 }
 
-const StockRow: React.FC<StockRowProps> = ({ 
-  stock, 
-  watchlistId, 
-  stockData, 
-  onRemoveStock 
+const StockRow: React.FC<StockRowProps> = ({
+  stock,
+  watchlistId,
+  stockData,
+  onRemoveStock
 }) => {
   const data = stockData[stock];
-  if (!data) return null;
+  if (!data) return (
+    <tr className="group border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+      <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 flex items-center text-xs">
+        {stock}
+        <button
+          onClick={() => onRemoveStock(watchlistId, stock)}
+          className="ml-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Remove invalid symbol"
+        >
+          <X size={10} />
+        </button>
+      </td>
+      <td colSpan={9} className="px-2 py-1 text-gray-500 text-xs italic">
+        Invalid symbol or no data available.
+      </td>
+    </tr>
+  );
 
   const isPositive = data.change >= 0;
 
   return (
-    <tr className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+    <tr className="group border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
       <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 flex items-center text-xs">
         {stock}
         <button
@@ -49,4 +65,4 @@ const StockRow: React.FC<StockRowProps> = ({
   );
 };
 
-export default StockRow; 
+export default React.memo(StockRow); 

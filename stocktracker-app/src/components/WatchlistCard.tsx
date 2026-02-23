@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Eye, 
-  EyeOff, 
+import {
+  Plus,
+  Trash2,
+  Edit3,
+  Eye,
+  EyeOff,
   BarChart3,
   GripVertical
 } from 'lucide-react';
@@ -54,14 +54,14 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
+    <div
+      ref={setNodeRef}
       style={style}
       className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 mb-4 group"
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <div 
+          <div
             className="mr-2 cursor-move text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             {...attributes}
             {...listeners}
@@ -135,9 +135,9 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
             </thead>
             <tbody>
               {watchlist.stocks.map(stock => (
-                <StockRow 
-                  key={stock} 
-                  stock={stock} 
+                <StockRow
+                  key={stock}
+                  stock={stock}
                   watchlistId={watchlist.id}
                   stockData={stockData}
                   onRemoveStock={onRemoveStock}
@@ -162,4 +162,4 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
   );
 };
 
-export default WatchlistCard; 
+export default React.memo(WatchlistCard); 

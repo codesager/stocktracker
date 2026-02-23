@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { calculateEMA } from '../utils/emaUtils';
 import type { StockData, Watchlist } from '../types/types';
 
@@ -71,10 +71,11 @@ export const useStockData = (watchlists: Watchlist[], apiKey: string) => {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const newStockData: Record<string, StockData> = {};
-    for (const symbol of allSymbols) {
-      const data = await generateStockData(symbol);
+    const results = await Promise.all(allSymbols.map(symbol => generateStockData(symbol)));
+
+    for (const data of results) {
       if (data) {
-        newStockData[symbol] = data;
+        newStockData[data.ticker] = data;
       }
     }
 
@@ -89,11 +90,18 @@ export const useStockData = (watchlists: Watchlist[], apiKey: string) => {
     localStorage.setItem('autoRefreshEnabled', String(newValue));
   }, [autoRefreshEnabled]);
 
-  // Initial fetch on mount and when watchlists/apiKey change (independent of auto-refresh)
+  // Deduplicate symbols to avoid re-fetching when just watchlist name/order changes
+  const trackedSymbols = useMemo(() => {
+    return [...new Set(
+      watchlists.filter(wl => wl.visible).flatMap(wl => wl.stocks)
+    )].sort().join(',');
+  }, [watchlists]);
+
+  // Initial fetch on mount and when symbols/apiKey change (independent of auto-refresh)
   useEffect(() => {
     fetchStockData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchlists, apiKey]);
+  }, [trackedSymbols, apiKey]);
 
   // Auto-refresh interval (only when enabled)
   useEffect(() => {
