@@ -1,4 +1,4 @@
-# StockTracker MVP
+# AlphaTracker
 
 A React-based Single Page Application (SPA) designed to track stocks, visualize historical data using TradingView, and monitor live market movers. Built with Vite and Tailwind CSS.
 

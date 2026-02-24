@@ -199,7 +199,7 @@ const StockTracker = () => {
               <div className="flex items-center">
                 <BarChart3 className="text-blue-600 mr-2" size={28} />
                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  MarketLens
+                  AlphaTracker
                 </h1>
               </div>
               <div className="flex items-center space-x-3">
