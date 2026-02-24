@@ -7,13 +7,15 @@ interface StockRowProps {
   watchlistId: number;
   stockData: Record<string, StockData>;
   onRemoveStock: (watchlistId: number, stockSymbol: string) => void;
+  onSelectStock: (stockSymbol: string) => void;
 }
 
 const StockRow: React.FC<StockRowProps> = ({
   stock,
   watchlistId,
   stockData,
-  onRemoveStock
+  onRemoveStock,
+  onSelectStock
 }) => {
   const data = stockData[stock];
   if (!data) return (
@@ -37,11 +39,17 @@ const StockRow: React.FC<StockRowProps> = ({
   const isPositive = data.change >= 0;
 
   return (
-    <tr className="group border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+    <tr
+      className="group border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+      onClick={() => onSelectStock(stock)}
+    >
       <td className="px-2 py-1 font-medium text-gray-900 dark:text-gray-100 flex items-center text-xs">
         {stock}
         <button
-          onClick={() => onRemoveStock(watchlistId, stock)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemoveStock(watchlistId, stock);
+          }}
           className="ml-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <X size={10} />

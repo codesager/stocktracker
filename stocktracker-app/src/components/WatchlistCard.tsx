@@ -25,6 +25,7 @@ interface WatchlistCardProps {
   onUpdateName: (id: number, newName: string) => void;
   onAddStock: (watchlistId: number) => void;
   onRemoveStock: (watchlistId: number, stockSymbol: string) => void;
+  onSelectStock: (stockSymbol: string) => void;
 }
 
 const WatchlistCard: React.FC<WatchlistCardProps> = ({
@@ -36,7 +37,8 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
   onEdit,
   onUpdateName,
   onAddStock,
-  onRemoveStock
+  onRemoveStock,
+  onSelectStock
 }) => {
   const {
     attributes,
@@ -141,6 +143,7 @@ const WatchlistCard: React.FC<WatchlistCardProps> = ({
                   watchlistId={watchlist.id}
                   stockData={stockData}
                   onRemoveStock={onRemoveStock}
+                  onSelectStock={onSelectStock}
                 />
               ))}
             </tbody>

@@ -1,69 +1,62 @@
-# React + TypeScript + Vite
+# StockTracker MVP
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based Single Page Application (SPA) designed to track stocks, visualize historical data using TradingView, and monitor live market movers. Built with Vite and Tailwind CSS.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Custom Watchlists:** Create multiple watchlists, reorder them via drag-and-drop, and seamlessly add or remove specific stock tickers.
+- **Real-Time Data Extraction:** Integrates with the Financial Modeling Prep (FMP) API to pull live EPS, P/E ratios, next earnings announcements, stock peers, and market quotes.
+- **Advanced Interactive Charting:** Uses the `react-ts-tradingview-widgets` library to embed feature-rich, dynamic TradingView charts.
+- **Peer Navigation:** Quickly pivot between related companies using clickable "Similar Stocks" badges.
+- **Top Movers Dashboard:** View real-time daily "Top Gainers" and "Top Losers" across the entire stock market, with sortable and filterable grids.
+- **Configurable Auto-Refresh:** Keep your prices up to date automatically without lifting a finger.
+- **Data Persistence:** Your watchlists, FMP API key, layout preferences, and UI theme (Dark/Light) are safely stored in your local browser storage.
+- **Import/Export Integration:** Easily download your watchlists as CSV files and upload them again on different devices.
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- [React](https://reactjs.org/) (Hooks, Context, Memoization)
+- [Vite](https://vitejs.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Lucide React](https://lucide.dev/) (Icons)
+- [@dnd-kit](https://dndkit.com/) (Drag and Drop Watchlists)
+- [TradingView Advanced Chart Widget](https://www.tradingview.com/widget/advanced-chart/)
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting Started
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### Prerequisites
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+To run this application locally, you will need to have [Node.js](https://nodejs.org/en/) installed on your machine.
+You will also need a free API key from [Financial Modeling Prep (FMP)](https://site.financialmodelingprep.com/developer/docs).
+
+### Installation
+
+1. Clone this repository (or download the zip extraction).
+2. Open your terminal and navigate to the root directory `stocktracker-app`.
+3. Install the dependencies by running:
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+4. Start the local development server:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+5. Open your browser to the local address provided (usually `http://localhost:5173`).
+6. When prompted by the application UI, enter your secure FMP API key to begin fetching stock data.
+
+## Deployment Information
+
+This project is a static front-end SPA and is fully optimized for continuous deployment on platforms like Vercel, Netlify, or GitHub Pages.
+
+To create an optimized production build, run:
+```bash
+npm run build
+```
+This generates the minimized, deploy-ready artifacts inside the `dist/` directory.
+
+---
+*Created as a lightweight, lightning-fast dashboard to monitor investments.*
