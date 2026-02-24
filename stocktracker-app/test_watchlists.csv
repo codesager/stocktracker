@@ -1,0 +1,5 @@
+Watchlist Name,Stocks,Visible
+Tech Giants,AAPL;GOOGL;MSFT;AMZN;META,true
+Financial Sector,JPM;BAC;WFC;GS;MS,true
+Healthcare,JNJ;PFE;UNH;ABBV;TMO,true
+Energy,XOM;CVX;COP;EOG;SLB,false 
