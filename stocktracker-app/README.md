@@ -27,7 +27,7 @@ A React-based Single Page Application (SPA) designed to track stocks, visualize 
 ### Prerequisites
 
 To run this application locally, you will need to have [Node.js](https://nodejs.org/en/) installed on your machine.
-You will also need a free API key from [Financial Modeling Prep (FMP)](https://site.financialmodelingprep.com/developer/docs).
+You will also need an API key from [Financial Modeling Prep (FMP)](https://site.financialmodelingprep.com/developer/docs).
 
 ### Installation
 
